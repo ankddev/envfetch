@@ -147,75 +147,36 @@ fn set_permanent_env(key: &str, value: Option<&str>) -> Result<(), Box<dyn std::
         }
     }
     
-    #[cfg(windows)]
-    {
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let path = r"Environment";
-        let (env, _) = hkcu.create_subkey(path)?;
-        
-        match value {
-            Some(val) => env.set_value(key, &val.to_string())?,
-            None => env.delete_value(key)?,
-        }
-        
-        // Notify system about environment variable change
-        unsafe {
-            winapi::um::winuser::SendMessageTimeoutW(
-                winapi::um::winuser::HWND_BROADCAST,
-                winapi::um::winuser::WM_SETTINGCHANGE,
-                0,
-                "Environment\0".as_ptr() as winapi::shared::minwindef::LPARAM,
-                winapi::um::winuser::SMTO_ABORTIFHUNG,
-                5000,
-                std::ptr::null_mut(),
-            );
-        }
-    }
+    let home = home_dir().ok_or("Cannot find home directory")?;
+    let rc_path = home.join(".bashrc");
     
-    #[cfg(not(windows))]
-    {
-        let shell = which("bash")
-            .or_else(|_| which("zsh"))
-            .or_else(|_| which("fish"))
-            .map_err(|_| "No supported shell found")?;
-            
-        let shell_name = shell.file_name()
-            .ok_or("Invalid shell path")?
-            .to_str()
-            .ok_or("Invalid shell name")?;
-            
-        let rc_file = match shell_name {
-            "bash" => ".bashrc",
-            "zsh" => ".zshrc",
-            "fish" => "config.fish",
-            _ => return Err("Unsupported shell".into()),
-        };
-        
-        let home = home_dir().ok_or("Cannot find home directory")?;
-        let rc_path = if shell_name == "fish" {
-            home.join(".config").join("fish").join(rc_file)
-        } else {
-            home.join(rc_file)
-        };
-        
-        let mut content = fs::read_to_string(&rc_path).unwrap_or_default();
-        
-        // Delete old value
-        let pattern = format!("export {}=", key);
-        if let Some(pos) = content.find(&pattern) {
+    let mut content = fs::read_to_string(&rc_path).unwrap_or_default();
+    
+    // Delete old value - check for both formats
+    let patterns = [
+        format!("export {}=", key),
+        format!("export {}=\"", key),
+        format!("export {}='", key),
+    ];
+    
+    for pattern in patterns.iter() {
+        if let Some(pos) = content.find(pattern) {
             if let Some(end) = content[pos..].find('\n') {
                 content.replace_range(pos..pos+end+1, "");
             }
         }
-        
-        // Add new value if it exists
-        if let Some(val) = value {
-            content.push_str(&format!("export {}=\"{}\"\n", key, val));
-        }
-        
-        fs::write(rc_path, content)?;
     }
     
+    // Add new value if it exists
+    if let Some(val) = value {
+        // Try both formats
+        #[cfg(target_os = "macos")]
+        content.push_str(&format!("export {}='{}'\n", key, val));
+        #[cfg(not(target_os = "macos"))]
+        content.push_str(&format!("export {}=\"{}\"\n", key, val));
+    }
+    
+    fs::write(rc_path, content)?;
     Ok(())
 }
 

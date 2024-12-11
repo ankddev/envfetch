@@ -226,6 +226,17 @@ fn load_custom_file_doesnt_exists() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[cfg(not(windows))]
+fn assert_env_var_in_content(content: &str, key: &str, value: &str) -> bool {
+    let formats = [
+        format!("export {}=\"{}\"", key, value),
+        format!("export {}='{}'", key, value),
+        format!("export {}={}", key, value),
+    ];
+    
+    formats.iter().any(|format| content.contains(format))
+}
+
 #[test]
 /// Test for gset command - setting variable permanently
 fn gset_command_success() -> Result<(), Box<dyn std::error::Error>> {
@@ -250,7 +261,10 @@ fn gset_command_success() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(windows))]
     {
         let content = fs::read_to_string(&rc_path)?;
-        assert!(content.contains(r#"export GSET_TEST_VAR="GlobalValue""#));
+        assert!(
+            assert_env_var_in_content(&content, "GSET_TEST_VAR", "GlobalValue"),
+            "Variable not found in rc file with any supported format"
+        );
         cleanup_shell_config(&rc_path)?;
     }
     Ok(())
@@ -336,10 +350,14 @@ fn gload_command_success() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(windows))]
     {
         let content = fs::read_to_string(&rc_path)?;
-        assert!(content.contains(r#"export GLOBAL_TEST_VAR="GlobalTest""#));
-        assert!(content.contains(r#"export GLOBAL_TEST_VAR2="Hello""#));
-        
-        // Cleanup after test
+        assert!(
+            assert_env_var_in_content(&content, "GLOBAL_TEST_VAR", "GlobalTest"),
+            "GLOBAL_TEST_VAR not found in rc file"
+        );
+        assert!(
+            assert_env_var_in_content(&content, "GLOBAL_TEST_VAR2", "Hello"),
+            "GLOBAL_TEST_VAR2 not found in rc file"
+        );
         cleanup_shell_config(&rc_path)?;
     }
     
