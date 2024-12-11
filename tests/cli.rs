@@ -250,7 +250,7 @@ fn gset_command_success() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(windows))]
     {
         let content = fs::read_to_string(&rc_path)?;
-        assert!(content.contains("export GSET_TEST_VAR=GlobalValue"));
+        assert!(content.contains(r#"export GSET_TEST_VAR="GlobalValue""#));
         cleanup_shell_config(&rc_path)?;
     }
     Ok(())
@@ -336,8 +336,8 @@ fn gload_command_success() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(windows))]
     {
         let content = fs::read_to_string(&rc_path)?;
-        assert!(content.contains("export GLOBAL_TEST_VAR='GlobalTest'"));
-        assert!(content.contains("export GLOBAL_TEST_VAR2='Hello'"));
+        assert!(content.contains(r#"export GLOBAL_TEST_VAR="GlobalTest""#));
+        assert!(content.contains(r#"export GLOBAL_TEST_VAR2="Hello""#));
         
         // Cleanup after test
         cleanup_shell_config(&rc_path)?;

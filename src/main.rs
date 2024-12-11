@@ -210,7 +210,7 @@ fn set_permanent_env(key: &str, value: Option<&str>) -> Result<(), Box<dyn std::
         
         // Add new value if it exists
         if let Some(val) = value {
-            content.push_str(&format!("export {}={}\n", key, val));
+            content.push_str(&format!("export {}=\"{}\"\n", key, val));
         }
         
         fs::write(rc_path, content)?;
