@@ -5,8 +5,6 @@ use assert_fs::prelude::*;
 use predicates::prelude::*;
 use std::env;
 use std::process::Command;
-use std::fs;
-use dirs;
 
 #[test]
 /// Test for set command if specified process is successful

@@ -8,12 +8,11 @@ mod utils;
 
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;
-use std::{env, fs, process, path::PathBuf};
+use std::{env, fs, process};
 #[cfg(windows)]
 use winreg::{enums::*, RegKey};
 #[cfg(not(windows))]
 use which::which;
-use dirs::home_dir;
 
 use utils::{error, run, warning};
 
