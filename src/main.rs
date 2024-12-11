@@ -136,6 +136,44 @@ pub struct GloadArgs {
     file: String,
 }
 
+#[cfg(windows)]
+fn set_permanent_env(key: &str, value: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    if key.contains(' ') {
+        return Err("Variable name cannot contain spaces".into());
+    }
+    
+    if let Some(val) = value {
+        if val.contains("==") {
+            return Err("Invalid variable format: value contains double equals".into());
+        }
+    }
+
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let path = r"Environment";
+    let (env, _) = hkcu.create_subkey(path)?;
+    
+    match value {
+        Some(val) => env.set_value(key, &val.to_string())?,
+        None => env.delete_value(key)?,
+    }
+    
+    // Notify system about environment variable change
+    unsafe {
+        winapi::um::winuser::SendMessageTimeoutW(
+            winapi::um::winuser::HWND_BROADCAST,
+            winapi::um::winuser::WM_SETTINGCHANGE,
+            0,
+            "Environment\0".as_ptr() as winapi::shared::minwindef::LPARAM,
+            winapi::um::winuser::SMTO_ABORTIFHUNG,
+            5000,
+            std::ptr::null_mut(),
+        );
+    }
+    
+    Ok(())
+}
+
+#[cfg(not(windows))]
 fn set_permanent_env(key: &str, value: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
     if key.contains(' ') {
         return Err("Variable name cannot contain spaces".into());
