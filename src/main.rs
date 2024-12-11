@@ -8,7 +8,12 @@ mod utils;
 
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;
-use std::{env, fs, process};
+use std::{env, fs, process, path::PathBuf};
+#[cfg(windows)]
+use winreg::{enums::*, RegKey};
+#[cfg(not(windows))]
+use which::which;
+use dirs::home_dir;
 
 use utils::{error, run, warning};
 
@@ -41,11 +46,17 @@ enum Commands {
     /// Set environment variable and run given process.
     /// Note that the variable sets only for one run
     Set(SetArgs),
+    /// Set environment variable permanently
+    Gset(GsetArgs),
     /// Delete environment variable and run given process.
     /// Note that the variable deletes only for one run
     Delete(DeleteArgs),
-    /// Load environment variables from dotenv file
+    /// Delete environment variable permanently
+    Gdelete(GdeleteArgs),
+    /// Load environment variables from dotenv file and run process
     Load(LoadArgs),
+    /// Load environment variables from dotenv file permanently
+    Gload(GloadArgs),
     /// Prints all environment variables
     Print,
 }
@@ -97,6 +108,117 @@ pub struct DeleteArgs {
     process: String,
 }
 
+/// Args for global set command
+#[derive(Args, Debug)]
+pub struct GsetArgs {
+    /// Environment variable name
+    #[arg(required = true)]
+    key: String,
+    /// Value for environment variable
+    #[arg(required = true)]
+    value: String,
+}
+
+/// Args for global delete command
+#[derive(Args, Debug)]
+pub struct GdeleteArgs {
+    /// Environment variable name
+    #[arg(required = true)]
+    key: String,
+}
+
+/// Args for global load command
+#[derive(Args, Debug)]
+pub struct GloadArgs {
+    /// Relative or absolute path to file to read variables from.
+    /// Note that it must in .env format
+    #[arg(long, short, default_value = ".env")]
+    file: String,
+}
+
+fn set_permanent_env(key: &str, value: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    if key.contains(' ') {
+        return Err("Variable name cannot contain spaces".into());
+    }
+    
+    if let Some(val) = value {
+        if val.contains("==") {
+            return Err("Invalid variable format: value contains double equals".into());
+        }
+    }
+    
+    #[cfg(windows)]
+    {
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let path = r"Environment";
+        let (env, _) = hkcu.create_subkey(path)?;
+        
+        match value {
+            Some(val) => env.set_value(key, &val.to_string())?,
+            None => env.delete_value(key)?,
+        }
+        
+        // Notify system about environment variable change
+        unsafe {
+            winapi::um::winuser::SendMessageTimeoutW(
+                winapi::um::winuser::HWND_BROADCAST,
+                winapi::um::winuser::WM_SETTINGCHANGE,
+                0,
+                "Environment\0".as_ptr() as winapi::shared::minwindef::LPARAM,
+                winapi::um::winuser::SMTO_ABORTIFHUNG,
+                5000,
+                std::ptr::null_mut(),
+            );
+        }
+    }
+    
+    #[cfg(not(windows))]
+    {
+        let shell = which("bash")
+            .or_else(|_| which("zsh"))
+            .or_else(|_| which("fish"))
+            .map_err(|_| "No supported shell found")?;
+            
+        let shell_name = shell.file_name()
+            .ok_or("Invalid shell path")?
+            .to_str()
+            .ok_or("Invalid shell name")?;
+            
+        let rc_file = match shell_name {
+            "bash" => ".bashrc",
+            "zsh" => ".zshrc",
+            "fish" => "config.fish",
+            _ => return Err("Unsupported shell".into()),
+        };
+        
+        let home = home_dir().ok_or("Cannot find home directory")?;
+        let rc_path = if shell_name == "fish" {
+            home.join(".config").join("fish").join(rc_file)
+        } else {
+            home.join(rc_file)
+        };
+        
+        let mut content = fs::read_to_string(&rc_path).unwrap_or_default();
+        
+        // Delete old value
+        let pattern = format!("export {}=", key);
+        if let Some(pos) = content.find(&pattern) {
+            if let Some(end) = content[pos..].find('\n') {
+                content.replace_range(pos..pos+end+1, "");
+            }
+        }
+        
+        // Add new value if it exists
+        if let Some(val) = value {
+            content.push_str(&format!("export {}={}\n", key, val));
+        }
+        
+        fs::write(rc_path, content)?;
+    }
+    
+    Ok(())
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -142,12 +264,37 @@ fn main() {
                 println!("{} = {:?}", &key.blue(), &value);
             }
         }
+        // Set command handler
+        Commands::Set(opt) => {
+            unsafe { env::set_var(opt.key, opt.value) };
+            run(opt.process, cli.exit_on_error);
+        }
+        Commands::Gset(opt) => {
+            if let Err(err) = set_permanent_env(&opt.key, Some(&opt.value)) {
+                error(err.to_string().as_str(), cli.exit_on_error);
+                process::exit(1);
+            }
+            unsafe { env::set_var(opt.key, opt.value) };
+        }
+        // Delete command handler
+        Commands::Delete(opt) => {
+            match env::var(&opt.key) {
+                Ok(_) => unsafe { env::remove_var(&opt.key) },
+                _ => warning("variable doesn't exists"),
+            }
+            run(opt.process, cli.exit_on_error);
+        }
+        Commands::Gdelete(opt) => {
+            if let Err(err) = set_permanent_env(&opt.key, None) {
+                error(err.to_string().as_str(), cli.exit_on_error);
+                process::exit(1);
+            }
+            unsafe { env::remove_var(&opt.key) };
+        }
         // Load command handler
         Commands::Load(opt) => {
-            // Try to read file
             match fs::read_to_string(&opt.file) {
                 Ok(content) => {
-                    // Try to parse file
                     match dotenv_parser::parse_dotenv(&content) {
                         Ok(variables) => {
                             for (key, value) in variables.into_iter() {
@@ -169,19 +316,35 @@ fn main() {
                 }
             }
         }
-        // Set command handler
-        Commands::Set(opt) => {
-            unsafe { env::set_var(opt.key, opt.value) };
-            run(opt.process, cli.exit_on_error);
-        }
-        // Delete command handler
-        Commands::Delete(opt) => {
-            // Check if variable exists
-            match env::var(&opt.key) {
-                Ok(_) => unsafe { env::remove_var(&opt.key) },
-                _ => warning("variable doesn't exists"),
+        Commands::Gload(opt) => {
+            match fs::read_to_string(&opt.file) {
+                Ok(content) => {
+                    if content.contains("==") {
+                        error("Invalid file format: contains double equals", cli.exit_on_error);
+                        process::exit(1);
+                    }
+                    
+                    match dotenv_parser::parse_dotenv(&content) {
+                        Ok(variables) => {
+                            for (key, value) in variables.into_iter() {
+                                if let Err(err) = set_permanent_env(&key, Some(&value)) {
+                                    error(err.to_string().as_str(), cli.exit_on_error);
+                                    process::exit(1);
+                                }
+                                unsafe { env::set_var(key, value) };
+                            }
+                        }
+                        Err(err) => {
+                            error(err.to_string().as_str(), cli.exit_on_error);
+                            process::exit(1);
+                        }
+                    }
+                }
+                Err(err) => {
+                    error(err.to_string().as_str(), cli.exit_on_error);
+                    process::exit(1);
+                }
             }
-            run(opt.process, cli.exit_on_error);
         }
     }
 }

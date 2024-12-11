@@ -18,9 +18,9 @@
 - [x] Set variable
 - [x] Delete variable
 - [x] Load variables from dotenv-style file
-- [ ] Globally set variables
-- [ ] Globally delete variables
-- [ ] Globally load variables from dotenv-style file
+- [x] Globally set variables
+- [x] Globally delete variables
+- [x] Globally load variables from dotenv-style file
 - [ ] Set and delete multiple variables at once
 # Get started
 ## Installing
@@ -43,7 +43,7 @@ You can run `envfetch help` to see help message or `envfetch --version` to see p
 #### Set
 Set environment variable and run process.
 > [!NOTE]
-> Now variable sets only for one run
+> For temporary commands (set, delete, load), variables are only modified for the current process run
 
 Usage:
 `envfetch set <KEY> <VALUE> <PROCESS>`, where:
@@ -99,7 +99,7 @@ It will print value of specified variable.
 #### Delete
 Delete variable and start process.
 > [!NOTE]
-> Now variable deletes only for one run
+> For temporary commands (set, delete, load), variables are only modified for the current process run
 
 Usage:
 `envfetch delete <KEY> <PROCESS>`, where:
@@ -117,7 +117,7 @@ It will delete variable `MY_VAR` and run `npm run` command.
 #### Load
 Load environment variables from dotenv-style file and run process.
 > [!NOTE]
-> Now variables set only for one run
+> For temporary commands (set, delete, load), variables are only modified for the current process run
 
 Usage:
 `envfetch load <PROCESS>`, where:
@@ -134,6 +134,62 @@ $ envfetch load "npm run"
 $ envfetch load "npm run" --file ".env.debug"
 ```
 It will load variables from `.env` or `.env.debug` and start `npm run`
+
+#### Gset
+Set environment variable permanently.
+
+Usage:
+`envfetch gset <KEY> <VALUE>`, where:
+- `KEY` - name of environment variable
+- `VALUE` - value of environment variable
+
+Options:
+- `--help`/`-h` - show help message
+
+For example:
+```shell
+$ envfetch gset MY_VAR "Hello"
+```
+It will permanently set environment variable with name `MY_VAR` to value "Hello"
+
+#### Gdelete
+Delete environment variable permanently.
+
+Usage:
+`envfetch gdelete <KEY>`, where:
+- `KEY` - name of environment variable
+
+Options:
+- `--help`/`-h` - show help message
+
+For example:
+```shell
+$ envfetch gdelete MY_VAR
+```
+It will permanently delete variable `MY_VAR`.
+
+#### Gload
+Load environment variables from dotenv-style file permanently.
+
+Usage:
+`envfetch gload`, where:
+
+Options:
+- `--help`/`-h` - show help message
+- `--file <FILE>`/`-f <FILE>` - relative or absolute path to file to read variables from. Note that it must be in .env format.
+By default, program loads variables from `.env` file in current directory.
+
+For example:
+```shell
+$ envfetch gload
+$ envfetch gload --file ".env.debug"
+```
+It will permanently load variables from `.env` or `.env.debug` file.
+
+> [!NOTE]
+> For global commands (gset, gdelete, gload):
+> - On Windows, variables are stored in the registry under HKEY_CURRENT_USER\Environment
+> - On Unix-like systems, variables are stored in shell configuration files (.bashrc, .zshrc, or config.fish)
 # Building from source
 - Install Rust. If it already installed, update with
 ```shell
