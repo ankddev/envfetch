@@ -37,3 +37,4 @@ winapi = { version = "0.3.7", features = ["winuser"] }
 assert_cmd = "2.0.16"
 predicates = "3.1.2"
 assert_fs = "1.1.2"
+dirs = "5.0"

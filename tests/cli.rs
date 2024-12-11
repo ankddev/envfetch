@@ -3,9 +3,38 @@
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
-use std::env;
-use std::fs;
-use std::process::Command;
+use std::{env, fs, process::Command, path::PathBuf};
+use dirs::home_dir;
+
+// Helper function to setup shell config files for testing
+#[cfg(not(windows))]
+fn setup_shell_config() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let home = home_dir().ok_or("Cannot find home directory")?;
+    let rc_path = home.join(".bashrc");
+    
+    // Create .bashrc if it doesn't exist
+    if !rc_path.exists() {
+        fs::write(&rc_path, "")?;
+    }
+    
+    Ok(rc_path)
+}
+
+// Helper function to cleanup after tests
+#[cfg(not(windows))]
+fn cleanup_shell_config(rc_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    if rc_path.exists() {
+        let content = fs::read_to_string(rc_path)?;
+        // Remove test variables from config
+        let cleaned_content: String = content
+            .lines()
+            .filter(|line| !line.contains("TEST_VAR") && !line.contains("GLOBAL_TEST"))
+            .collect::<Vec<&str>>()
+            .join("\n");
+        fs::write(rc_path, cleaned_content)?;
+    }
+    Ok(())
+}
 
 #[test]
 /// Test for set command if specified process is successful
@@ -200,6 +229,9 @@ fn load_custom_file_doesnt_exists() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 /// Test for gset command - setting variable permanently
 fn gset_command_success() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(windows))]
+    let rc_path = setup_shell_config()?;
+
     let mut cmd = Command::cargo_bin("envfetch")?;
     cmd.arg("gset").arg("GSET_TEST_VAR").arg("GlobalValue");
     cmd.assert().success();
@@ -217,26 +249,9 @@ fn gset_command_success() -> Result<(), Box<dyn std::error::Error>> {
     // Check shell rc file on Unix
     #[cfg(not(windows))]
     {
-        let home = dirs::home_dir().unwrap();
-        let rc_files = vec![".bashrc", ".zshrc", "config.fish"];
-        let mut found = false;
-        
-        for rc in rc_files {
-            let rc_path = if rc == "config.fish" {
-                home.join(".config").join("fish").join(rc)
-            } else {
-                home.join(rc)
-            };
-            
-            if rc_path.exists() {
-                let content = fs::read_to_string(rc_path)?;
-                if content.contains(&format!("export GSET_TEST_VAR=GlobalValue")) {
-                    found = true;
-                    break;
-                }
-            }
-        }
-        assert!(found, "Variable not found in any rc file");
+        let content = fs::read_to_string(&rc_path)?;
+        assert!(content.contains("export GSET_TEST_VAR=GlobalValue"));
+        cleanup_shell_config(&rc_path)?;
     }
     Ok(())
 }
@@ -292,6 +307,9 @@ fn gdelete_command_success() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 /// Test for gload command with valid file
 fn gload_command_success() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(windows))]
+    let rc_path = setup_shell_config()?;
+
     let mut cmd = Command::cargo_bin("envfetch")?;
     let file = assert_fs::NamedTempFile::new(".env.global.test")?;
     file.write_str("GLOBAL_TEST_VAR='GlobalTest'\nGLOBAL_TEST_VAR2='Hello'")?;
@@ -317,28 +335,12 @@ fn gload_command_success() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(not(windows))]
     {
-        let home = dirs::home_dir().unwrap();
-        let rc_files = vec![".bashrc", ".zshrc", "config.fish"];
-        let mut found_vars = 0;
+        let content = fs::read_to_string(&rc_path)?;
+        assert!(content.contains("export GLOBAL_TEST_VAR='GlobalTest'"));
+        assert!(content.contains("export GLOBAL_TEST_VAR2='Hello'"));
         
-        for rc in rc_files {
-            let rc_path = if rc == "config.fish" {
-                home.join(".config").join("fish").join(rc)
-            } else {
-                home.join(rc)
-            };
-            
-            if rc_path.exists() {
-                let content = fs::read_to_string(rc_path)?;
-                if content.contains("export GLOBAL_TEST_VAR='GlobalTest'") {
-                    found_vars += 1;
-                }
-                if content.contains("export GLOBAL_TEST_VAR2='Hello'") {
-                    found_vars += 1;
-                }
-            }
-        }
-        assert!(found_vars == 2, "Not all variables were found in rc files");
+        // Cleanup after test
+        cleanup_shell_config(&rc_path)?;
     }
     
     file.close()?;
