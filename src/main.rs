@@ -9,6 +9,7 @@ mod utils;
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;
 use std::{env, fs, process};
+use dirs::home_dir;
 #[cfg(windows)]
 use winreg::{enums::*, RegKey};
 #[cfg(not(windows))]
