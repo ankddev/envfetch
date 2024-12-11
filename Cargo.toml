@@ -10,29 +10,30 @@ homepage = "https://github.com/ankddev/envfetch"
 repository = "https://github.com/ankddev/envfetch"
 
 [dependencies]
-# Parsing command line options
+# CLI arguments parsing
 clap = { version = "4.5.23", features = ["derive"] }
-# Printing colored text
+# Colored output
 colored = "2.1.0"
-# Checking similarity of strings
+# String similarity check
 similar-string = "1.4.3"
-# Running external proccesses
+# Process execution
 subprocess = "0.2.9"
-# Parsing dotenv-style files
+# .env file parsing
 dotenv-parser = "0.1.3"
-# Working with Windows registry
+# Shell detection
+which = "6.0"
+# Home directory operations
+dirs = "5.0"
+
+# Windows-specific dependencies
+[target.'cfg(windows)'.dependencies]
+# Windows registry operations
 winreg = "0.52"
 # Windows API
 winapi = { version = "0.3.7", features = ["winuser"] }
-# Getting path to shell
-which = "6.0"
-# Working with home directory
-dirs = "5.0"
 
 [dev-dependencies]
-# Asserting CLI programs
+# Testing utilities
 assert_cmd = "2.0.16"
-# Asserting predicates
 predicates = "3.1.2"
-# Asserting file system
 assert_fs = "1.1.2"
