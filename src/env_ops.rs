@@ -67,9 +67,6 @@ pub fn set_permanent_env(key: &str, value: Option<&str>) -> Result<(), Box<dyn s
     remove_existing_var(&mut content, key);
     
     if let Some(val) = value {
-        #[cfg(target_os = "macos")]
-        content.push_str(&format!("export {}='{}'\n", key, val));
-        #[cfg(not(target_os = "macos"))]
         content.push_str(&format!("export {}=\"{}\"\n", key, val));
     }
     
@@ -93,7 +90,16 @@ fn validate_env_var(key: &str, value: Option<&str>) -> Result<(), Box<dyn std::e
 #[cfg(not(windows))]
 fn get_rc_path() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
     let home = home_dir().ok_or("Cannot find home directory")?;
-    Ok(home.join(".bashrc"))
+    let rc_path = home.join(".bashrc");
+    
+    if !rc_path.exists() {
+        if let Some(parent) = rc_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&rc_path, "# Environment variables\n")?;
+    }
+    
+    Ok(rc_path)
 }
 
 #[cfg(not(windows))]
@@ -105,10 +111,16 @@ fn remove_existing_var(content: &mut String, key: &str) {
     ];
     
     for pattern in patterns.iter() {
-        if let Some(pos) = content.find(pattern) {
+        while let Some(pos) = content.find(pattern) {
             if let Some(end) = content[pos..].find('\n') {
                 content.replace_range(pos..pos+end+1, "");
             }
         }
     }
+    
+    *content = content
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n") + "\n";
 } 
