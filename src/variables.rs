@@ -25,15 +25,7 @@ pub fn set_variable(
     global: bool,
     process: Option<String>,
 ) -> Result<(), ErrorKind> {
-    // Input validation
-    if key.is_empty() {
-        return Err(ErrorKind::InvalidInput("Variable key cannot be empty".to_string()));
-    }
-
-    // Check for invalid characters (optional, adjust as needed)
-    if key.contains('=') || key.contains('\0') {
-        return Err(ErrorKind::InvalidInput("Invalid characters in variable name".to_string()));
-    }
+    validate_var_name(key).map_err(ErrorKind::NameValidationError)?;
 
     if global {
         if let Err(err) = globalenv::set_var(key, value) {
@@ -49,62 +41,33 @@ pub fn set_variable(
     Ok(())
 }
 
-/// Update variable - allows partial updates
-pub fn update_variable(
-    old_key: &str, 
-    new_key: Option<&str>, 
-    new_value: Option<&str>, 
-    global: bool
+/// Add value to existing variable or create new one
+pub fn add_variable(
+    key: &str,
+    value: &str,
+    global: bool,
+    process: Option<String>,
 ) -> Result<(), ErrorKind> {
-    // If no changes specified, return early
-    if new_key.is_none() && new_value.is_none() {
-        return Ok(());
-    }
+    validate_var_name(key).map_err(ErrorKind::NameValidationError)?;
 
-    // Get current value if key exists
-    let current_value = env::var(old_key).ok();
+    let current_value = env::var(key).unwrap_or_default();
+    let new_value = format!("{}{}", current_value, value);
 
-    // Determine the key to use
-    let key_to_use = new_key.unwrap_or(old_key);
-    
-    // Determine the value to use
-    let value_to_use = new_value.or(current_value);
-
-    // If we have a value, set the variable
-    if let Some(value) = value_to_use {
-        // If key changed, delete the old one first
-        if new_key.is_some() && new_key.unwrap() != old_key {
-            delete_variable(old_key.to_string(), global)?;
-        }
-
-        // Set the new or updated variable
-        set_variable(key_to_use, &value, global, None)
-    } else {
-        Err(ErrorKind::InvalidInput("Cannot update variable without a value".to_string()))
-    }
+    set_variable(key, &new_value, global, process)
 }
 
 /// Delete variable with given name
 pub fn delete_variable(name: String, global: bool) -> Result<(), ErrorKind> {
-    // Check if variable exists before attempting to delete
+    validate_var_name(&name).map_err(ErrorKind::NameValidationError)?;
+
     if global {
         if let Err(err) = globalenv::unset_var(&name) {
             return Err(ErrorKind::CannotDeleteVariableGlobally(err.to_string()));
         }
     } else {
-        // Only attempt to remove if the variable exists
-        if env::var(&name).is_ok() {
-            unsafe { env::remove_var(&name) };
-        } else {
-            return Err(ErrorKind::InvalidInput(format!("Variable '{}' does not exist", name)));
-        }
+        unsafe { env::remove_var(&name) };
     }
     Ok(())
-}
-
-/// Find a variable by its key
-pub fn find_variable(key: &str) -> Option<(String, String)> {
-    env::vars().find(|(k, _)| k == key)
 }
 
 #[cfg(test)]
@@ -113,50 +76,69 @@ mod tests {
     use std::env;
 
     #[test]
-    fn test_update_variable_key() {
-        // Set initial variable
-        unsafe { env::set_var("OLD_TEST_KEY", "test_value") };
-
-        // Update key
-        let result = update_variable("OLD_TEST_KEY", Some("NEW_TEST_KEY"), None, false);
-        
-        assert!(result.is_ok());
-        assert_eq!(env::var("NEW_TEST_KEY").unwrap(), "test_value");
-        assert!(env::var("OLD_TEST_KEY").is_err());
-
-        // Cleanup
-        unsafe { env::remove_var("NEW_TEST_KEY") };
+    fn test_get_variables_list() {
+        unsafe { env::set_var("TEST_GET_VARIABLES", "test_value") };
+        let list = get_variables();
+        assert!(list.contains(&("TEST_GET_VARIABLES".to_string(), "test_value".to_string())));
+        unsafe { env::remove_var("TEST_GET_VARIABLES") };
     }
 
     #[test]
-    fn test_update_variable_value() {
-        // Set initial variable
-        unsafe { env::set_var("TEST_UPDATE_VAR", "old_value") };
-
-        // Update value
-        let result = update_variable("TEST_UPDATE_VAR", None, Some("new_value"), false);
-        
+    fn test_set_variable_simple() {
+        let result = set_variable("TEST_VAR", "test_value", false, None);
         assert!(result.is_ok());
-        assert_eq!(env::var("TEST_UPDATE_VAR").unwrap(), "new_value");
-
-        // Cleanup
-        unsafe { env::remove_var("TEST_UPDATE_VAR") };
+        assert_eq!(env::var("TEST_VAR").unwrap(), "test_value");
+        unsafe { env::remove_var("TEST_VAR") };
     }
 
     #[test]
-    fn test_update_variable_both() {
-        // Set initial variable
-        unsafe { env::set_var("OLD_KEY", "test_value") };
+    fn test_set_variable_with_process() {
+        #[cfg(windows)]
+        let cmd = "cmd /C echo test";
+        #[cfg(not(windows))]
+        let cmd = "echo test";
 
-        // Update both key and value
-        let result = update_variable("OLD_KEY", Some("NEW_KEY"), Some("new_value"), false);
-        
+        let result = set_variable("TEST_PROC_VAR", "test_value", false, Some(cmd.to_string()));
         assert!(result.is_ok());
-        assert_eq!(env::var("NEW_KEY").unwrap(), "new_value");
-        assert!(env::var("OLD_KEY").is_err());
-
-        // Cleanup
-        unsafe { env::remove_var("NEW_KEY") };
+        assert_eq!(env::var("TEST_PROC_VAR").unwrap(), "test_value");
+        unsafe { env::remove_var("TEST_PROC_VAR") };
     }
 
+    #[test]
+    fn test_print_env() {
+        unsafe { env::set_var("TEST_PRINT_VAR", "test_value") };
+        let mut buffer = vec![];
+        print_env("{name} = \"{value}\"", &mut buffer);
+        assert!(
+            String::from_utf8(buffer)
+                .unwrap()
+                .contains("TEST_PRINT_VAR = \"test_value\"")
+        );
+        unsafe { env::remove_var("TEST_PRINT_VAR") };
+    }
+
+    #[test]
+    fn test_add_variable_new() {
+        let result = add_variable("TEST_ADD_NEW", "value", false, None);
+        assert!(result.is_ok());
+        assert_eq!(env::var("TEST_ADD_NEW").unwrap(), "value");
+        unsafe { env::remove_var("TEST_ADD_NEW") };
+    }
+
+    #[test]
+    fn test_add_variable_existing() {
+        unsafe { env::set_var("TEST_ADD_EXISTING", "initial") };
+        let result = add_variable("TEST_ADD_EXISTING", "_added", false, None);
+        assert!(result.is_ok());
+        assert_eq!(env::var("TEST_ADD_EXISTING").unwrap(), "initial_added");
+        unsafe { env::remove_var("TEST_ADD_EXISTING") };
+    }
+
+    #[test]
+    fn test_delete_variable() {
+        unsafe { env::set_var("TEST_DELETE_VAR", "test_value") };
+        let result = delete_variable("TEST_DELETE_VAR".to_string(), false);
+        assert!(result.is_ok());
+        assert!(env::var("TEST_DELETE_VAR").is_err());
+    }
 }

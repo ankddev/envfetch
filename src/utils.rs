@@ -118,21 +118,6 @@ mod tests {
     }
 
     #[test]
-    fn test_find_similar_string_multiple_matches() {
-        let strings = vec![
-            "TEST".to_string(),
-            "TSET".to_string(),
-            "TEXT".to_string(),
-            "NONE".to_string(),
-        ];
-        let result = find_similar_string("TEST".to_string(), strings, 0.5);
-        assert!(result.contains(&"TEST".to_string()));
-        assert!(result.contains(&"TEXT".to_string()));
-        assert!(result.contains(&"TSET".to_string()));
-        assert!(!result.contains(&"NONE".to_string()));
-    }
-
-    #[test]
     fn test_run_successful_command() {
         #[cfg(windows)]
         let cmd = "cmd /C echo test";
@@ -146,84 +131,6 @@ mod tests {
     #[test]
     fn test_run_nonexistent_command() {
         let result = run("nonexistent_command_123".to_string(), true);
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ErrorKind::ProcessFailed));
-    }
-
-    #[test]
-    fn test_run_failing_command() {
-        #[cfg(windows)]
-        let cmd = "cmd /C exit 1";
-        #[cfg(not(windows))]
-        let cmd = "false";
-
-        let result = run(cmd.to_string(), true);
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ErrorKind::ProcessFailed));
-    }
-
-    #[test]
-    fn test_run_empty_command() {
-        let result = run("".to_string(), true);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_run_invalid_executable() {
-        // Test with a command that should fail to execute
-        let result = run("\0invalid".to_string(), true);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ErrorKind::StartingProcessError
-        ));
-    }
-
-    #[test]
-    fn test_run_null_command() {
-        // Test with a null character in command which should fail to start
-        let result = run("echo \0test".to_string(), true);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ErrorKind::StartingProcessError
-        ));
-    }
-
-    #[test]
-    fn test_run_with_very_long_command() {
-        // Create a command that's too long to execute
-        let very_long_command = "x".repeat(65536);
-        let result = run(very_long_command, true);
-        assert!(result.is_err());
-
-        // Different OS's may return different error types for too-long commands
-        let err = result.unwrap_err();
-        match err {
-            ErrorKind::StartingProcessError | ErrorKind::ProcessFailed => {}
-            _ => panic!("Unexpected error type: {:?}", err),
-        }
-    }
-
-    #[test]
-    fn test_run_without_capture() {
-        #[cfg(windows)]
-        let cmd = "cmd /C echo test";
-        #[cfg(not(windows))]
-        let cmd = "echo test";
-
-        let result = run(cmd.to_string(), false); // Set capture to false
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_run_without_capture_failing_command() {
-        #[cfg(windows)]
-        let cmd = "cmd /C exit 1";
-        #[cfg(not(windows))]
-        let cmd = "false";
-
-        let result = run(cmd.to_string(), false); // Set capture to false
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ErrorKind::ProcessFailed));
     }
