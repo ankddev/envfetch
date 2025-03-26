@@ -11,7 +11,7 @@ repository = "https://github.com/ankddev/envfetch"
 
 [dependencies]
 # Parsing command line options
-clap = { version = "4.5.32", features = ["derive"] }
+clap = { version = "4.5.33", features = ["derive"] }
 # Printing colored text
 colored = "3.0.0"
 # Checking similarity of strings
