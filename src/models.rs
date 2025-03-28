@@ -23,7 +23,6 @@ pub struct Cli {
     pub command: Commands,
 }
 
-/// All tool's commands
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum Commands {
     /// Open envfetch in interactive mode with TUI.
@@ -44,7 +43,6 @@ pub enum Commands {
     InitConfig,
 }
 
-/// Args for print command
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct PrintArgs {
     /// Set custom format, by default {name} = "{value}" is used.
@@ -52,7 +50,6 @@ pub struct PrintArgs {
     pub format: Option<String>,
 }
 
-/// Args for get command
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct GetArgs {
     /// Environment variable name
@@ -63,7 +60,6 @@ pub struct GetArgs {
     pub no_similar_names: bool,
 }
 
-/// Args for load command
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct LoadArgs {
     /// Globally set variable
@@ -78,7 +74,6 @@ pub struct LoadArgs {
     pub file: String,
 }
 
-/// Args for set command
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct SetArgs {
     /// Environment variable name
@@ -95,7 +90,6 @@ pub struct SetArgs {
     pub process: Option<String>,
 }
 
-/// Args for add command
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct AddArgs {
     /// Environment variable name
@@ -112,7 +106,6 @@ pub struct AddArgs {
     pub process: Option<String>,
 }
 
-/// Args for delete command
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct DeleteArgs {
     /// Environment variable name
