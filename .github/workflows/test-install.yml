@@ -7,11 +7,15 @@ on:
       - "install.ps1"
       - "install.sh"
       - ".github/workflows/test-install.yml"
+    branches-ignore:
+      - "v*.*.*"
   pull_request:
     paths:
       - "install.ps1"
       - "install.sh"
       - ".github/workflows/test-install.yml"
+    branches-ignore:
+      - "v*.*.*"
 
 jobs:
   test-install-windows:

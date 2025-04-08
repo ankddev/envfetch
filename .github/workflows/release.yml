@@ -101,4 +101,3 @@ jobs:
   test-install-scripts:
     needs: publish
     uses: ./.github/workflows/test-install.yml
-
