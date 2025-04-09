@@ -1,4 +1,5 @@
 # Source code for the VHS envfetch example.
+# YOU NEED TO GLOBALLY INSTALL ENVFETCH FROM SOURCE CODE TO GENERATE RECORDING
 #
 # To run:
 #

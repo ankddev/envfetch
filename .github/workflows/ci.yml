@@ -117,6 +117,7 @@ jobs:
       - name: Update Rust
         run: rustup update stable
       - name: Main cache
+        id: cache
         uses: actions/cache@v4
         with:
           path: |
@@ -125,7 +126,10 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-record-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-recording-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install envfetch from source
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cargo install --path .
       - name: Build ttyd
         run: |
           sudo apt-get update
