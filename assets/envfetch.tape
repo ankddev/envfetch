@@ -10,13 +10,9 @@ Output assets/envfetch.ascii
 
 Require envfetch
 
-Set PlaybackSpeed 0.5
-Set CursorBlink false
-Set Framerate 60
-Set TypingSpeed 400ms
-Set FontSize 24
-Set Width 1600
-Set Height 800
+Set FontSize 18
+Set Width 800
+Set Height 600
 
 # Basic set
 Type `envfetch set MY_VAR_TEST "Hello for everyone!" -- echo hello` Sleep 500ms  Enter
@@ -51,7 +47,7 @@ Type "envfetch print" Sleep 500ms  Enter
 Sleep 500ms
 # Interactive mode
 Type "envfetch interactive" Sleep 500ms  Enter
-Sleep 3s
+Sleep 2s
 Down@2
 Sleep 600ms
 Ctrl+r
@@ -59,7 +55,7 @@ Sleep 1s
 Down@4
 Sleep 600ms
 Up
-Sleep 2s
+Sleep 500ms
 Screenshot "assets/interactive_main.png"
 Type "a"
 Screenshot "assets/interactive_add.png"
