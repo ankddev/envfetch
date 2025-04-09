@@ -11,19 +11,16 @@ Output assets/envfetch.ascii
 Require envfetch
 
 Set FontSize 18
-Set Width 800
-Set Height 600
+Set Width 900
+Set Height 800
 
-Hide
-Type sudo su Enter
-Show
 # Basic set
 Type `envfetch set MY_VAR_TEST "Hello for everyone!" -- echo hello` Sleep 500ms  Enter
 Sleep 500ms
 Type "envfetch get MY_VAR_TEST" Sleep 500ms  Enter
 Sleep 500ms
 # Global set
-Type `envfetch set MY_VAR_TEST "Hello for everyone!" --global` Sleep 500ms  Enter
+Type `sudo -E envfetch set MY_VAR_TEST "Hello for everyone!" --global` Sleep 500ms  Enter
 Sleep 500ms
 # Get with wrong name
 Type "envfetch get MY_VAR_TESTT" Sleep 500ms  Enter
@@ -32,15 +29,15 @@ Sleep 500ms
 Type "envfetch get MY_VAR_TEST" Sleep 500ms  Enter
 Sleep 500ms
 # Add globally
-Type "envfetch add MY_VAR_TEST ! --global" Sleep 500ms  Enter
+Type "sudo -E envfetch add MY_VAR_TEST ! --global" Sleep 500ms  Enter
 Sleep 500ms
 # Remove globally
-Type "envfetch delete MY_VAR_TEST --global" Sleep 500ms  Enter
+Type "sudo -E envfetch delete MY_VAR_TEST --global" Sleep 500ms  Enter
 Sleep 500ms
 # Load
 Type "envfetch get HELLO_VAR" Sleep 500ms  Enter
 Sleep 500ms
-Type `envfetch load --global --file "assets/.env.example"` Sleep 500ms  Enter
+Type `sudo -E envfetch load --global --file "assets/.env.example"` Sleep 500ms  Enter
 Sleep 500ms
 Type "envfetch get HELLO_VAR" Sleep 500ms  Enter
 Sleep 500ms
