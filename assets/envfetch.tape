@@ -14,6 +14,9 @@ Set FontSize 18
 Set Width 800
 Set Height 600
 
+Hide
+Type sudo su Enter
+Show
 # Basic set
 Type `envfetch set MY_VAR_TEST "Hello for everyone!" -- echo hello` Sleep 500ms  Enter
 Sleep 500ms
