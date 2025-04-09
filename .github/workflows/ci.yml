@@ -109,6 +109,50 @@ jobs:
         run: cargo build --verbose --locked
       - name: Run tests
         run: cargo test --verbose
+  record:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Rust
+        run: rustup update stable
+      - name: Main cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-record-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build ttyd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libjson-c-dev libwebsockets-dev
+          git clone https://github.com/tsl0922/ttyd.git
+          cd ttyd && mkdir build && cd build
+          cmake ..
+          make && sudo make install
+      - name: Add sources for VHS
+        run: |
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | sudo tee /etc/apt/sources.list.d/charm.list
+      - name: Install ffmpeg and VHS
+        run: sudo apt update && sudo apt install vhs ffmpeg
+      - name: Create GIF and screenshots
+        run: vhs assets/envfetch.tape
+      - name: Upload assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: envfetch-record
+          path: |
+            assets/envfetch.gif
+            assets/envfetch.ascii
+            assets/interactive_main.png
+            assets/interactive_add.png
+            assets/main.png
   coverage:
     runs-on: ubuntu-latest
 
