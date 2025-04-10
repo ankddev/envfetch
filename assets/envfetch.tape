@@ -11,8 +11,8 @@ Output assets/envfetch.ascii
 Require envfetch
 
 Set FontSize 18
-Set Width 1200
-Set Height 800
+Set Width 1600
+Set Height 1200
 
 Hide
 Type "source ~/.bashrc && clear" Enter
@@ -68,6 +68,7 @@ Sleep 500ms
 Screenshot "assets/interactive_main.png"
 Type "a"
 Screenshot "assets/interactive_add.png"
+Sleep 1s
 Escape
 Ctrl+q
 
