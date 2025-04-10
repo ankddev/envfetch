@@ -126,12 +126,13 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-            /usr/local/bin/
           key: ${{ runner.os }}-recording-${{ hashFiles('**/Cargo.lock') }}
       - name: Install envfetch from source
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           cargo install --path .
+      - name: Copy envfetch to system directory
+        run: |
           sudo install ~/.cargo/bin/envfetch /usr/local/bin/
           sudo chmod +x /usr/local/bin/envfetch
       - name: Build ttyd
