@@ -870,7 +870,12 @@ mod tests {
         writeln!(temp_file, "TEST_PROCESS_VAR=process_value").unwrap();
 
         #[cfg(windows)]
-        let cmd = vec!["cmd".to_string(), "/C".to_string(), "echo".to_string(), "test".to_string()];
+        let cmd = vec![
+            "cmd".to_string(),
+            "/C".to_string(),
+            "echo".to_string(),
+            "test".to_string(),
+        ];
         #[cfg(not(windows))]
         let cmd = vec!["echo".to_string(), "test".to_string()];
 
@@ -1142,7 +1147,12 @@ mod tests {
 
         let mut buffer = vec![];
         #[cfg(windows)]
-        let failing_command = vec!["cmd".to_string(), "/C".to_string(), "exit".to_string(), "1".to_string()];
+        let failing_command = vec![
+            "cmd".to_string(),
+            "/C".to_string(),
+            "exit".to_string(),
+            "1".to_string(),
+        ];
         #[cfg(not(windows))]
         let failing_command = vec!["false".to_string()];
         assert_eq!(

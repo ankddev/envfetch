@@ -158,7 +158,15 @@ mod tests {
 
     #[test]
     fn test_add_command_simple() {
-        let args = Cli::parse_from(["envfetch", "add", "PATH", "./executable", "--", "npm", "run"]);
+        let args = Cli::parse_from([
+            "envfetch",
+            "add",
+            "PATH",
+            "./executable",
+            "--",
+            "npm",
+            "run",
+        ]);
         assert_eq!(
             args.command,
             Commands::Add(AddArgs {
