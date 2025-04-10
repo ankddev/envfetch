@@ -11,11 +11,11 @@ Output assets/envfetch.ascii
 Require envfetch
 
 Set FontSize 18
-Set Width 900
+Set Width 1200
 Set Height 800
 
 Hide
-Type `export PS1="> " && source ~/.bashrc` Enter
+Type "source ~/.bashrc && clear" Enter
 Show
 
 # Basic set
