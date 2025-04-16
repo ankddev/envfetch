@@ -34,7 +34,7 @@ dirs = "6.0.0"
 
 [dev-dependencies]
 # Asserting CLI programs
-assert_cmd = "2.0.16"
+assert_cmd = "2.0.17"
 # Asserting predicates
 predicates = "3.1.3"
 # Asserting file system
