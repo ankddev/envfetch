@@ -42,6 +42,8 @@ pub enum Commands {
     Print(PrintArgs),
     /// Initialize config file.
     InitConfig,
+    /// Export variable to .env file
+    Export(ExportArgs),
 }
 
 /// Args for print command
@@ -159,6 +161,21 @@ pub struct DeleteArgs {
         num_args = 1..
     )]
     pub process: Vec<String>,
+}
+
+/// Args for export command
+#[derive(Args, Debug, PartialEq, Eq)]
+pub struct ExportArgs {
+    /// File name to be exported as
+    #[arg(required = true)]
+    pub file_name: String,
+    /// Environment variable(s) name
+    #[arg(
+        required = true,
+        last = true,
+        num_args = 1..
+    )]
+    pub keys: Vec<String>,
 }
 
 #[derive(Debug)]

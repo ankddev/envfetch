@@ -22,7 +22,7 @@
 - [x] Add string to the end of variable (temporary and permanent)
 - [ ] Set and delete multiple variables at once
 - [x] Interactive mode
-- [ ] Export variables
+- [x] Export variables
 - [x] Configuration support
 # Get started
 ## Installing

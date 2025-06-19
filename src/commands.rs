@@ -1,5 +1,4 @@
-use log::error;
-use log::warn;
+use log::{error, warn};
 use rayon::prelude::*;
 use std::io::Write;
 use std::process::ExitCode;
@@ -117,6 +116,13 @@ pub fn run_command<W: Write>(
                 return ExitCode::FAILURE;
             }
         }
+        Commands::Export(opt) => match export(opt) {
+            Ok(()) => {}
+            Err(error) => {
+                error!("{error}");
+                return ExitCode::FAILURE;
+            }
+        },
     }
     ExitCode::SUCCESS
 }
@@ -229,6 +235,39 @@ pub fn delete(args: &DeleteArgs) -> Result<Option<ExitStatus>, ErrorKind> {
         return run(process).map(Some);
     }
     Ok(None)
+}
+
+pub fn export(args: &ExportArgs) -> Result<(), ErrorKind> {
+    let mut file = fs::File::create(format!("{}.env", args.file_name.trim()))
+        .map_err(|e| ErrorKind::FileError(e.to_string()))?;
+
+    let mut added_vars: Vec<String> = Vec::new();
+
+    for key in &args.keys {
+        validate_var_name(key).map_err(ErrorKind::NameValidationError)?;
+
+        match env::var(key) {
+            Ok(value) => {
+                if added_vars.contains(key) {
+                    warn!("Duplicate var {key} found, skipping");
+                    continue;
+                };
+
+                writeln!(file, "{}={}", key, &value)
+                    .map_err(|e| ErrorKind::FileError(e.to_string()))?;
+
+                added_vars.push(key.to_string());
+            }
+            Err(_) => {
+                warn!(
+                    "{}, skipping",
+                    ErrorKind::CannotFindVariable(key.clone(), false)
+                )
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -815,6 +854,162 @@ mod tests {
     }
 
     #[test]
+    fn test_export_valid_keys() {
+        init();
+        unsafe {
+            env::set_var("TEST_EXPORT_ONE", "val1");
+            env::set_var("TEST_EXPORT_TWO", "val2");
+        }
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let file_name = temp_file.path().to_string_lossy().to_string();
+
+        let mut buffer = vec![];
+        run_command(
+            &Commands::Export(ExportArgs {
+                file_name: file_name.clone(),
+                keys: vec!["TEST_EXPORT_ONE".to_string(), "TEST_EXPORT_TWO".to_string()],
+            }),
+            None,
+            &mut buffer,
+        );
+
+        let content = std::fs::read_to_string(&format!("{}.env", file_name)).unwrap();
+        assert!(content.contains("TEST_EXPORT_ONE=val1"));
+        assert!(content.contains("TEST_EXPORT_TWO=val2"));
+
+        unsafe {
+            env::remove_var("TEST_EXPORT_ONE");
+            env::remove_var("TEST_EXPORT_TWO");
+        }
+        std::fs::remove_file(file_name).unwrap();
+    }
+
+        #[test]
+    fn test_export_skips_duplicate_keys() {
+        init();
+        unsafe {
+            env::set_var("TEST_EXPORT_ONE", "val");
+        }
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let file_name = temp_file.path().to_string_lossy().to_string();
+
+        let args = ExportArgs {
+            file_name: file_name.clone(),
+            keys: vec!["TEST_EXPORT_ONE".to_string(), "TEST_EXPORT_ONE".to_string()],
+        };
+
+        let result = export(&args);
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(&format!("{}.env", file_name)).unwrap();
+        assert!(!content.contains(r#"TEST_EXPORT_ONE=val
+TEST_EXPORT_ONE=val"#));
+
+        unsafe {
+            env::remove_var("TEST_EXPORT_ONE");
+        }
+        std::fs::remove_file(file_name).unwrap();
+    }
+
+    #[test]
+    fn test_export_skips_missing_vars() {
+        init();
+        unsafe {
+            env::set_var("TEST_EXPORT_EXISTING", "val");
+            env::set_var("TEST_EXPORT_EXISTING2", "val2");
+        }
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let file_name = temp_file.path().to_string_lossy().to_string();
+
+        let args = ExportArgs {
+            file_name: file_name.clone(),
+            keys: vec![
+                "TEST_EXPORT_EXISTING".to_string(),
+                "TEST_EXPORT_MISSING".to_string(),
+                "TEST_EXPORT_EXISTING2".to_string(),
+            ],
+        };
+
+        let result = export(&args);
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(&format!("{}.env", file_name)).unwrap();
+        assert!(content.contains("TEST_EXPORT_EXISTING=val"));
+        assert!(!content.contains("TEST_EXPORT_MISSING"));
+        assert!(content.contains("TEST_EXPORT_EXISTING2=val2"));
+
+        unsafe {
+            env::remove_var("TEST_EXPORT_EXISTING");
+            env::remove_var("TEST_EXPORT_EXISTING2");
+        };
+        std::fs::remove_file(file_name).unwrap();
+    }
+
+    #[test]
+    fn test_export_empty_key() {
+        init();
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let file_name = temp_file.path().to_string_lossy().to_string();
+
+        let args = ExportArgs {
+            file_name: file_name.clone(),
+            keys: vec!["".to_string()],
+        };
+
+        let result = export(&args);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ErrorKind::NameValidationError(e) => {
+                assert!(e.contains("cannot be empty"));
+            }
+            _ => panic!("Unexpected error type"),
+        }
+
+        std::fs::remove_file(file_name).unwrap();
+    }
+
+    #[test]
+    fn test_export_invalid_key_name() {
+        init();
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let file_name = temp_file.path().to_string_lossy().to_string();
+
+        let args = ExportArgs {
+            file_name: file_name.clone(),
+            keys: vec!["INVALID KEY".to_string()],
+        };
+
+        let result = export(&args);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ErrorKind::NameValidationError(e) => {
+                assert!(e.contains("cannot contain spaces"));
+            }
+            _ => panic!("Unexpected error type"),
+        }
+
+        std::fs::remove_file(file_name).unwrap();
+    }
+
+    #[test]
+    fn test_export_file_error() {
+        init();
+
+        let args = ExportArgs {
+            file_name: "/test/test/test/test/test/test/test".to_string(),
+            keys: vec!["DUMMY".to_string()],
+        };
+
+        let result = export(&args);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_load_valid_env_file() {
         let mut temp_file = NamedTempFile::new().unwrap();
         writeln!(temp_file, "TEST_VAR=test_value\nOTHER_VAR=other_value").unwrap();
@@ -1142,7 +1337,12 @@ mod tests {
 
         let mut buffer = vec![];
         #[cfg(windows)]
-        let failing_command = vec!["cmd".to_string(), "/C".to_string(), "exit".to_string(), "1".to_string()];
+        let failing_command = vec![
+            "cmd".to_string(),
+            "/C".to_string(),
+            "exit".to_string(),
+            "1".to_string(),
+        ];
         #[cfg(not(windows))]
         let failing_command = vec!["false".to_string()];
         assert_eq!(
