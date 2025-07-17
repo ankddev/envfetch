@@ -12,6 +12,8 @@
     <img src="https://github.com/user-attachments/assets/261ea1fd-438a-40b0-847d-6a460b7a30a9" />
 </div>
 
+NOTE: this is branch for rewritten from scratch version 3.*, for previous 2.* versions check branch `v2`.
+
 # Features
 - [x] Print list of all environment variables
 - [x] Get value of variable by name
