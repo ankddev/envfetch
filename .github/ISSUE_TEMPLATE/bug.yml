@@ -35,6 +35,9 @@ body:
       description: What version of our software are you running?
       options:
         - Latest from GitHub Actions
+        - 2.1.2
+        - 2.1.1
+        - 2.1.0
         - 2.0.0
         - 1.4.0
         - Other
