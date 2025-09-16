@@ -28,7 +28,7 @@ ratatui = "0.29.0"
 crossterm = "0.29.0"
 # Config parsing
 serde = { version = "1.0.224", features = ["derive"] }
-toml = "0.9.5"
+toml = "0.9.6"
 # Finding directories
 dirs = "6.0.0"
 
