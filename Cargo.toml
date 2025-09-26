@@ -27,7 +27,7 @@ env_logger = "0.11.6"
 ratatui = "0.29.0"
 crossterm = "0.29.0"
 # Config parsing
-serde = { version = "1.0.226", features = ["derive"] }
+serde = { version = "1.0.227", features = ["derive"] }
 toml = "0.9.7"
 # Finding directories
 dirs = "6.0.0"
